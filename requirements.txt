@@ -74,3 +74,4 @@ urllib3==2.2.3
 Werkzeug==3.0.4
 wsproto==1.2.0
 yarl==1.15.5
+https://github.com/jleb/pyaudio/archive/master.zip
