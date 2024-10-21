@@ -1,7 +1,5 @@
 import os
-import pyaudio
-import wave
-import audioop
+from pydub import AudioSegment
 import speech_recognition as sr
 from groq import Groq
 import time
@@ -9,10 +7,10 @@ from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify, send_file
 import base64
 import logging
-import asyncio
-from edge_tts import Communicate
 import tempfile
 import uuid
+import asyncio
+from edge_tts import Communicate
 
 # Configuration du logging
 logging.basicConfig(level=logging.DEBUG)
@@ -21,15 +19,6 @@ logging.basicConfig(level=logging.DEBUG)
 load_dotenv()
 
 app = Flask(__name__)
-
-# Paramètres audio
-CHUNK = 1024
-FORMAT = pyaudio.paInt16
-CHANNELS = 1
-RATE = 44100
-SILENCE_THRESHOLD = 500
-SILENCE_DURATION = 1
-PHRASE_TIMEOUT = 10
 
 # Configuration Groq
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
@@ -40,16 +29,20 @@ groq_client = Groq(api_key=GROQ_API_KEY)
 # Dictionnaire pour stocker les contextes de conversation
 conversation_contexts = {}
 
-def transcribe_audio_with_groq(audio_file_path):
+def transcribe_audio_with_groq(audio_file):
     try:
-        with open(audio_file_path, "rb") as file:
-            transcription = groq_client.audio.transcriptions.create(
-                file=(audio_file_path, file.read()),
-                model="whisper-large-v3-turbo",
-                response_format="json",
-                language="fr",
-                temperature=0.0
-            )
+        audio = AudioSegment.from_wav(audio_file)
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
+            audio.export(temp_file.name, format="wav")
+            with open(temp_file.name, "rb") as file:
+                transcription = groq_client.audio.transcriptions.create(
+                    file=(temp_file.name, file.read()),
+                    model="whisper-large-v3-turbo",
+                    response_format="json",
+                    language="fr",
+                    temperature=0.0
+                )
+        os.unlink(temp_file.name)
         return transcription.text
     except Exception as e:
         app.logger.error(f"Erreur lors de la transcription avec Groq : {str(e)}")
@@ -133,25 +126,15 @@ def transcribe():
         
         audio_binary = base64.b64decode(audio_data.split(',')[1])
         
-        # Sauvegarder l'audio dans un fichier temporaire
-        temp_filename = f"temp_{int(time.time())}.wav"
-        with wave.open(temp_filename, 'wb') as wf:
-            wf.setnchannels(CHANNELS)
-            wf.setsampwidth(pyaudio.get_sample_size(FORMAT))
-            wf.setframerate(RATE)
-            wf.writeframes(audio_binary)
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
+            temp_file.write(audio_binary)
+            temp_file_path = temp_file.name
         
-        # Transcrire l'audio avec Groq
-        transcription = transcribe_audio_with_groq(temp_filename)
+        transcription = transcribe_audio_with_groq(temp_file_path)
+        os.unlink(temp_file_path)
         
-        # Obtenir la réponse du LLM
         llm_response = get_llm_response(conversation_id, transcription)
-        
-        # Générer l'audio de la réponse
         audio_file = asyncio.run(text_to_speech(llm_response))
-        
-        # Supprimer le fichier temporaire
-        os.remove(temp_filename)
         
         return jsonify({
             'transcription': transcription,
@@ -164,7 +147,6 @@ def transcribe():
             'error': 'Une erreur est survenue lors de la transcription',
             'details': str(e)
         }), 500
-
 
 @app.route('/synthesize', methods=['POST'])
 def synthesize():
@@ -198,4 +180,5 @@ def serve_audio(filename):
         return jsonify({"error": "Fichier audio non trouvé"}), 404
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
