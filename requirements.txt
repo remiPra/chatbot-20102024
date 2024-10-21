@@ -4,4 +4,4 @@ python-dotenv
 pydub
 SpeechRecognition
 edge-tts
-gunicorn
+gunicorn==23.0.0
