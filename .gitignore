@@ -1,0 +1,44 @@
+# Environnement virtuel
+venv/
+
+# Fichiers Python compilés
+*.pyc
+__pycache__/
+
+# Fichiers d'environnement
+.env
+
+# Dossier Vercel
+.vercel/
+
+# Fichiers audio temporaires
+temp_*.mp3
+
+# Fichiers de cache
+*.cache
+
+# Logs
+*.log
+
+# Fichiers système macOS
+.DS_Store
+
+# Fichiers système Windows
+Thumbs.db
+
+# Fichiers IDE (ajustez selon votre IDE)
+.vscode/
+.idea/
+
+# Fichiers de build
+build/
+dist/
+
+# Fichiers de dépendances
+node_modules/
+
+# Fichiers de configuration locaux
+*.local"muso-ninja-72b51-firebase-adminsdk-48td0-9f90409d74.json" 
+"muso-ninja-72b51-firebase-adminsdk-48td0-9f90409d74.json" 
+"muso-ninja-72b51-firebase-adminsdk-48td0-9f90409d74.json" 
+muso-ninja-72b51-firebase-adminsdk-48td0-9f90409d74.json 

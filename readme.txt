@@ -1,0 +1,3 @@
+Bonjour, je suis l'assistante virtuelle de Monsieur Rémy Pradère. Actuellement, il est en consultation et ne peut pas vous répondre. Cependant, je peux prendre un rendez-vous pour vous à sa place. Je vous rappelle que vous avez également la possibilité de prendre rendez-vous via Doctolib en recherchant "Rémi Pradère". Si vous préférez, nous pouvons organiser cela ensemble maintenant.
+
+Pour ce faire, je vais vous demander de me fournir votre nom, votre prénom, et votre numéro de téléphone portable, l'un après l'autre. Si vous pouvez épeler ces informations, cela m'aiderait beaucoup. Je vous répondrai après chaque information que vous me donnerez, en marquant une pause pour vous laisser le temps de répondre.
