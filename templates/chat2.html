@@ -5,70 +5,141 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Assistant IA avec Reconnaissance Vocale et TTS</title>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --primary-color: #1a73e8;
+            --bg-color: #f0f4f8;
+            --text-color: #202124;
+            --message-bg: #ffffff;
+            --user-message-bg: #e8f0fe;
+        }
         body, html {
-            font-family: Arial, sans-serif;
+            font-family: 'Roboto', sans-serif;
             margin: 0;
             padding: 0;
             height: 100%;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+        .chat-container {
+            max-width: 400px;
+            margin: 20px auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
             display: flex;
             flex-direction: column;
+            height: calc(100% - 40px);
+        }
+        .chat-header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+        }
+        .chat-header img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 12px;
+        }
+        .chat-header h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 500;
         }
         #conversationHistory {
             flex-grow: 1;
             overflow-y: auto;
-            padding: 20px;
-            background-color: #f0f0f0;
+            padding: 16px;
         }
         .message {
-            margin-bottom: 10px;
-            padding: 10px;
-            border-radius: 5px;
             max-width: 80%;
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            border-radius: 18px;
+            font-size: 14px;
+            line-height: 1.4;
         }
         .user-message {
-            background-color: #e6f3ff;
+            background-color: var(--user-message-bg);
+            color: var(--primary-color);
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
             margin-left: auto;
         }
         .assistant-message {
-            background-color: #ffffff;
-            margin-right: auto;
+            background-color: var(--message-bg);
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
         }
         .error-message {
             background-color: #ffe6e6;
             color: #ff0000;
+            text-align: center;
         }
         .input-area {
+            padding: 16px;
+            border-top: 1px solid #e0e0e0;
+        }
+        .input-row {
             display: flex;
-            flex-direction: column;
-            padding: 10px;
-            background-color: #ffffff;
+            align-items: center;
+            margin-bottom: 12px;
         }
         #textInput {
-            width: 100%;
-            padding: 15px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            margin-bottom: 10px;
-            font-size: 16px;
-        }
-        .button-row {
-            display: flex;
-            justify-content: space-between;
-        }
-        .button {
             flex-grow: 1;
-            padding: 15px;
-            margin: 0 5px;
-            border: none;
-            border-radius: 4px;
-            background-color: #007bff;
+            padding: 8px 12px;
+            border: 1px solid #dadce0;
+            border-radius: 24px;
+            font-size: 14px;
+        }
+        #textInput:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        #sendButton {
+            background-color: var(--primary-color);
             color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-left: 8px;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #sendButton svg {
+            width: 24px;
+            height: 24px;
+        }
+        #recordButton, #stopAudioButton {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 24px;
             font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #recordButton {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        #stopAudioButton {
+            background-color: #f44336;
+            color: white;
+            display: none;
+        }
+        #recordButton:hover, #stopAudioButton:hover {
+            opacity: 0.9;
         }
         #recordButton.recording {
-            background-color: #dc3545;
             animation: pulse 1s infinite;
         }
         @keyframes pulse {
@@ -79,221 +150,229 @@
     </style>
 </head>
 <body>
-    <div id="conversationHistory"></div>
-    <div class="input-area">
-        <input type="text" id="textInput" placeholder="Tapez votre message...">
-        <div class="button-row">
-            <button id="sendButton" class="button">Envoyer</button>
-            <button id="recordButton" class="button">🎙</button>
-            <button id="stopAudioButton" class="button" style="display: none;">⏹️</button>
+    <div class="chat-container">
+        <div class="chat-header">
+            <img src="https://via.placeholder.com/40" alt="AI Assistant">
+            <h1>Assistant IA Intelligent</h1>
+        </div>
+        <div id="conversationHistory"></div>
+        <div class="input-area">
+            <div class="input-row">
+                <input type="text" id="textInput" placeholder="Tapez votre message...">
+                <button id="sendButton">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
+                    </svg>
+                </button>
+            </div>
+            <button id="recordButton">🎙 Enregistrer</button>
+            <button id="stopAudioButton">⏹️ Arrêter l'enregistrement</button>
         </div>
     </div>
 <script>
     // Configuration et variables globales
-// const GROQ_API_KEY = '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';
-const GROQ_API_KEY = "{{ groq_api_key }}";
+    const GROQ_API_KEY = "{{ groq_api_key }}";
 
+    let isRecording = false;
+    let mediaRecorder;
+    let audioChunks = [];
+    let conversationHistory = [];
+    let currentAudio = null;
 
+    // Sélection des éléments DOM
+    const textInput = document.getElementById('textInput');
+    const sendButton = document.getElementById('sendButton');
+    const recordButton = document.getElementById('recordButton');
+    const stopAudioButton = document.getElementById('stopAudioButton');
+    const conversationHistoryDiv = document.getElementById('conversationHistory');
 
-let isRecording = false;
-let mediaRecorder;
-let audioChunks = [];
-let conversationHistory = [];
-let currentAudio = null;
+    // Ajout des écouteurs d'événements
+    sendButton.addEventListener('click', () => sendMessage());
+    recordButton.addEventListener('click', toggleRecording);
+    stopAudioButton.addEventListener('click', stopAudio);
+    textInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            sendMessage();
+        }
+    });
 
-// Sélection des éléments DOM
-const textInput = document.getElementById('textInput');
-const sendButton = document.getElementById('sendButton');
-const recordButton = document.getElementById('recordButton');
-const stopAudioButton = document.getElementById('stopAudioButton');
-const conversationHistoryDiv = document.getElementById('conversationHistory');
-
-// Ajout des écouteurs d'événements
-sendButton.addEventListener('click', () => sendMessage());
-recordButton.addEventListener('click', toggleRecording);
-stopAudioButton.addEventListener('click', stopAudio);
-textInput.addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        sendMessage();
+    // Fonction pour basculer l'enregistrement audio
+    function toggleRecording() {
+        if (!isRecording) {
+            startRecording();
+        } else {
+            stopRecording();
+        }
     }
-});
 
-// Fonction pour basculer l'enregistrement audio
-function toggleRecording() {
-    if (!isRecording) {
-        startRecording();
-    } else {
-        stopRecording();
-    }
-}
-
-// Fonction pour démarrer l'enregistrement audio
-async function startRecording() {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
-        audioChunks = [];
-
-        mediaRecorder.ondataavailable = (event) => {
-            audioChunks.push(event.data);
-        };
-
-        mediaRecorder.onstop = () => {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            sendAudioToGroq(audioBlob);
-        };
-
-        mediaRecorder.start();
-        isRecording = true;
-        recordButton.textContent = '⏹';
-        recordButton.classList.add('recording');
-    } catch (err) {
-        console.error('Erreur lors de l\'accès au microphone:', err);
-        addMessageToHistory('error', 'Erreur d\'accès au microphone: ' + err.message);
-    }
-}
-
-// Fonction pour arrêter l'enregistrement audio
-function stopRecording() {
-    if (mediaRecorder && isRecording) {
-        mediaRecorder.stop();
-        isRecording = false;
-        recordButton.textContent = '🎙';
-        recordButton.classList.remove('recording');
-    }
-}
-
-// Fonction pour envoyer l'audio à Groq pour transcription
-async function sendAudioToGroq(audioBlob) {
-    try {
-        const formData = new FormData();
-        formData.append('file', audioBlob, 'recording.webm');
-        formData.append('model', 'whisper-large-v3');
-
-        const response = await axios.post('https://api.groq.com/openai/v1/audio/transcriptions', formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-                'Authorization': `Bearer ${GROQ_API_KEY}`
-            }
-        });
-
-        console.log('Transcription response:', response.data);
-        const transcription = response.data.text;
-        textInput.value = transcription;
-        sendMessage(transcription);
-    } catch (error) {
-        console.error('Erreur de transcription:', error);
-        addMessageToHistory('error', 'Erreur lors de la transcription audio: ' + (error.response?.data?.error?.message || error.message));
-    }
-}
-
-// Fonction pour envoyer un message
-async function sendMessage(messageText = textInput.value.trim()) {
-    if (messageText) {
-        stopAllAudio();
-        addMessageToHistory('user', messageText);
-        textInput.value = '';
-
+    // Fonction pour démarrer l'enregistrement audio
+    async function startRecording() {
         try {
-            const messages = [
-                { role: 'system', content: 'Vous êtes un assistant IA utile et amical.' },
-                ...conversationHistory
-                    .filter(msg => msg.role === 'user' || msg.role === 'assistant')
-                    .map(msg => ({ role: msg.role, content: msg.content })),
-                { role: 'user', content: messageText }
-            ];
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
 
-            console.log('Messages envoyés à l\'API:', JSON.stringify(messages, null, 2));
+            mediaRecorder.ondataavailable = (event) => {
+                audioChunks.push(event.data);
+            };
 
-            const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-                model: 'mixtral-8x7b-32768',
-                messages: messages
-            }, {
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                sendAudioToGroq(audioBlob);
+            };
+
+            mediaRecorder.start();
+            isRecording = true;
+            recordButton.textContent = '⏹️ Arrêter';
+            recordButton.classList.add('recording');
+            stopAudioButton.style.display = 'none';
+        } catch (err) {
+            console.error('Erreur lors de l\'accès au microphone:', err);
+            addMessageToHistory('error', 'Erreur d\'accès au microphone: ' + err.message);
+        }
+    }
+
+    // Fonction pour arrêter l'enregistrement audio
+    function stopRecording() {
+        if (mediaRecorder && isRecording) {
+            mediaRecorder.stop();
+            isRecording = false;
+            recordButton.textContent = '🎙 Enregistrer';
+            recordButton.classList.remove('recording');
+        }
+    }
+
+    // Fonction pour envoyer l'audio à Groq pour transcription
+    async function sendAudioToGroq(audioBlob) {
+        try {
+            const formData = new FormData();
+            formData.append('file', audioBlob, 'recording.webm');
+            formData.append('model', 'whisper-large-v3');
+
+            const response = await axios.post('https://api.groq.com/openai/v1/audio/transcriptions', formData, {
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'multipart/form-data',
                     'Authorization': `Bearer ${GROQ_API_KEY}`
                 }
             });
 
-            console.log('Réponse de l\'API:', response.data);
-            if (response.data && response.data.choices && response.data.choices.length > 0) {
-                const assistantMessage = response.data.choices[0].message.content;
-                addMessageToHistory('assistant', assistantMessage);
-                await generateAndPlayAudio(assistantMessage);
-            } else {
-                throw new Error('Réponse de l\'API invalide');
-            }
+            console.log('Transcription response:', response.data);
+            const transcription = response.data.text;
+            textInput.value = transcription;
+            sendMessage(transcription);
         } catch (error) {
-            console.error('Erreur détaillée:', error.response?.data || error);
-            addMessageToHistory('error', 'Erreur lors de la génération de la réponse: ' + (error.response?.data?.error?.message || error.message));
+            console.error('Erreur de transcription:', error);
+            addMessageToHistory('error', 'Erreur lors de la transcription audio: ' + (error.response?.data?.error?.message || error.message));
         }
     }
-}
 
-// Fonction pour générer et lire l'audio
-async function generateAndPlayAudio(text) {
-    try {
-        console.log("Envoi de la requête de synthèse vocale pour le texte:", text);
-        const response = await axios.post('/synthesize', { text: text }, { 
-            responseType: 'blob',
-            timeout: 30000
-        });
-        console.log("Réponse reçue du serveur pour la synthèse vocale");
-        const audioUrl = URL.createObjectURL(response.data);
-        stopAudio(); // Arrête l'audio précédent s'il y en a un
-        currentAudio = new Audio(audioUrl);
-        currentAudio.play();
-        stopAudioButton.style.display = 'inline-block';
-        
-        currentAudio.onended = () => {
-            stopAudioButton.style.display = 'none';
+    // Fonction pour envoyer un message
+    async function sendMessage(messageText = textInput.value.trim()) {
+        if (messageText) {
+            stopAllAudio();
+            addMessageToHistory('user', messageText);
+            textInput.value = '';
+
+            try {
+                const messages = [
+                    { role: 'system', content: 'Vous êtes un assistant IA utile et amical.' },
+                    ...conversationHistory
+                        .filter(msg => msg.role === 'user' || msg.role === 'assistant')
+                        .map(msg => ({ role: msg.role, content: msg.content })),
+                    { role: 'user', content: messageText }
+                ];
+
+                console.log('Messages envoyés à l\'API:', JSON.stringify(messages, null, 2));
+
+                const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
+                    model: 'mixtral-8x7b-32768',
+                    messages: messages
+                }, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${GROQ_API_KEY}`
+                    }
+                });
+
+                console.log('Réponse de l\'API:', response.data);
+                if (response.data && response.data.choices && response.data.choices.length > 0) {
+                    const assistantMessage = response.data.choices[0].message.content;
+                    addMessageToHistory('assistant', assistantMessage);
+                    await generateAndPlayAudio(assistantMessage);
+                } else {
+                    throw new Error('Réponse de l\'API invalide');
+                }
+            } catch (error) {
+                console.error('Erreur détaillée:', error.response?.data || error);
+                addMessageToHistory('error', 'Erreur lors de la génération de la réponse: ' + (error.response?.data?.error?.message || error.message));
+            }
+        }
+    }
+
+    // Fonction pour générer et lire l'audio
+    async function generateAndPlayAudio(text) {
+        try {
+            console.log("Envoi de la requête de synthèse vocale pour le texte:", text);
+            const response = await axios.post('/synthesize', { text: text }, { 
+                responseType: 'blob',
+                timeout: 30000
+            });
+            console.log("Réponse reçue du serveur pour la synthèse vocale");
+            const audioUrl = URL.createObjectURL(response.data);
+            stopAudio(); // Arrête l'audio précédent s'il y en a un
+            currentAudio = new Audio(audioUrl);
+            currentAudio.play();
+            stopAudioButton.style.display = 'block';
+            
+            currentAudio.onended = () => {
+                stopAudioButton.style.display = 'none';
+                currentAudio = null;
+            };
+        } catch (error) {
+            console.error('Erreur détaillée lors de la synthèse vocale:', error.response || error);
+            addMessageToHistory('error', 'Erreur lors de la synthèse vocale: ' + (error.response?.status || error.message));
+        }
+    }
+
+    // Fonction pour arrêter l'audio en cours
+    function stopAudio() {
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
             currentAudio = null;
-        };
-    } catch (error) {
-        console.error('Erreur détaillée lors de la synthèse vocale:', error.response || error);
-        addMessageToHistory('error', 'Erreur lors de la synthèse vocale: ' + (error.response?.status || error.message));
+        }
+        stopAudioButton.style.display = 'none';
     }
-}
 
-// Fonction pour arrêter l'audio en cours
-function stopAudio() {
-    if (currentAudio) {
-        currentAudio.pause();
-        currentAudio.currentTime = 0;
-        currentAudio = null;
+    // Fonction pour arrêter tous les sons (enregistrement et lecture)
+    function stopAllAudio() {
+        stopRecording();
+        stopAudio();
     }
-    stopAudioButton.style.display = 'none';
-}
 
-// Fonction pour arrêter tous les sons (enregistrement et lecture)
-function stopAllAudio() {
-    stopRecording();
-    stopAudio();
-}
+    // Fonction pour ajouter un message à l'historique
+    function addMessageToHistory(role, content) {
+        conversationHistory.push({ role, content });
+        updateConversationDisplay();
+    }
 
-// Fonction pour ajouter un message à l'historique
-function addMessageToHistory(role, content) {
-    conversationHistory.push({ role, content });
-    updateConversationDisplay();
-}
+    // Fonction pour mettre à jour l'affichage de la conversation
+    function updateConversationDisplay() {
+        conversationHistoryDiv.innerHTML = conversationHistory.map(msg => 
+            `<div class="message ${msg.role}-message">
+                <strong>${msg.role === 'user' ? 'Vous' : msg.role === 'assistant' ? 'Assistant' : 'Erreur'}:</strong> ${msg.content}
+            </div>`
+        ).join('');
+        conversationHistoryDiv.scrollTop = conversationHistoryDiv.scrollHeight;
+    }
 
-// Fonction pour mettre à jour l'affichage de la conversation
-function updateConversationDisplay() {
-    conversationHistoryDiv.innerHTML = conversationHistory.map(msg => 
-        `<div class="message ${msg.role}-message">
-            <strong>${msg.role === 'user' ? 'Vous' : msg.role === 'assistant' ? 'Assistant' : 'Erreur'}:</strong> ${msg.content}
-        </div>`
-    ).join('');
-    conversationHistoryDiv.scrollTop = conversationHistoryDiv.scrollHeight;
-}
-
-// Initialisation de la conversation
-fetch('/start_conversation', { method: 'POST' })
-    .then(response => response.json())
-    .then(data => {
-        conversationId = data.conversation_id;
-    })
-    .catch(error => console.error("Erreur lors du démarrage de la conversation:", error));
+    // Initialisation de la conversation
+    fetch('/start_conversation', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            conversationId = data.conversation_id;
+        })
+        .catch(error => console.error("Erreur lors du démarrage de la conversation:", error));
 </script>
 </body>
 </html>
