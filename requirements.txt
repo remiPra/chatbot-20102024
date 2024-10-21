@@ -14,7 +14,6 @@ charset-normalizer==3.4.0
 click==8.1.7
 colorama==0.4.6
 comtypes==1.4.7
-gunicorn==20.1.0
 cryptography==43.0.3
 distro==1.9.0
 edge-tts==6.1.14
@@ -35,6 +34,7 @@ googleapis-common-protos==1.65.0
 groq==0.11.0
 grpcio==1.67.0
 grpcio-status==1.67.0
+gunicorn==23.0.0
 h11==0.14.0
 httpcore==1.0.6
 httplib2==0.22.0
@@ -45,6 +45,7 @@ Jinja2==3.1.4
 MarkupSafe==3.0.2
 msgpack==1.1.0
 multidict==6.1.0
+packaging==24.1
 propcache==0.2.0
 proto-plus==1.24.0
 protobuf==5.28.2
@@ -57,12 +58,12 @@ pydantic_core==2.23.4
 pygame==2.6.1
 PyJWT==2.9.0
 pyparsing==3.2.0
-# pypiwin32==223
+pypiwin32==223
 python-dotenv==1.0.1
 python-engineio==4.10.1
 python-socketio==5.11.4
 pyttsx3==2.98
-# pywin32==308
+pywin32==308
 requests==2.32.3
 rsa==4.9
 simple-websocket==1.1.0
@@ -74,4 +75,3 @@ urllib3==2.2.3
 Werkzeug==3.0.4
 wsproto==1.2.0
 yarl==1.15.5
-https://github.com/jleb/pyaudio/archive/master.zip
