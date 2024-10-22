@@ -272,6 +272,10 @@ def transcribe_anthropic():
             'details': str(e)
         }), 500
 
+@app.route('/drawer.html')
+def drawer_template():
+    return send_from_directory('templates', 'drawer.html')
+
 @app.route('/synthesize', methods=['POST'])
 def synthesize():
     try:
