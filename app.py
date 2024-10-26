@@ -156,6 +156,11 @@ def index():
 def chat2():
     return render_template('chat2.html', groq_api_key=GROQ_API_KEY)
 
+
+@app.route('/jailbreak')
+def jailbreak():
+    return render_template('jailbreak.html', groq_api_key=GROQ_API_KEY)
+
 @app.route('/chat3')
 def chat3():
     return render_template('chat3.html', anthropic_api_key=ANTHROPIC_API_KEY)

@@ -289,36 +289,24 @@
     // Fonction pour envoyer l'audio au serveur
     async function sendAudioToServer(audioBlob) {
         try {
-            const reader = new FileReader();
-            reader.readAsDataURL(audioBlob);
-            reader.onloadend = async function() {
-                const base64Audio = reader.result;
-                const response = await fetch('/transcribe/anthropic', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        audio: base64Audio,
-                        conversation_id: currentConversationId
-                    }),
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    addMessageToHistory('user', data.transcription);
-                    addMessageToHistory('assistant', data.llm_response);
-                    if (data.audio_file) {
-                        playAudio(`/audio/${data.audio_file}`);
-                    }
-                } else {
-                    addMessageToHistory('error', data.error || 'Erreur lors de la transcription');
+            const formData = new FormData();
+            formData.append('file', audioBlob, 'recording.webm');
+            formData.append('model', 'whisper-large-v3');
+
+            const response = await axios.post('https://api.groq.com/openai/v1/audio/transcriptions', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                    'Authorization': `Bearer ${GROQ_API_KEY}`
                 }
-            };
+            });
+
+            console.log('Transcription response:', response.data);
+            const transcription = response.data.text;
+            textInput.value = transcription;
+            sendMessage(transcription);
         } catch (error) {
-            console.error('Erreur lors de l\'envoi de l\'audio:', error);
-            addMessageToHistory('error', 'Erreur lors de l\'envoi de l\'audio: ' + error.message);
+            console.error('Erreur de transcription:', error);
+            addMessageToHistory('error', 'Erreur lors de la transcription audio: ' + (error.response?.data?.error?.message || error.message));
         }
     }
 
