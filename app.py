@@ -163,7 +163,7 @@ def jailbreak():
 
 @app.route('/chat3')
 def chat3():
-    return render_template('chat3.html', anthropic_api_key=ANTHROPIC_API_KEY)
+    return render_template('chat3.html', anthropic_api_key=ANTHROPIC_API_KEY,groq_api_key=GROQ_API_KEY)
 
 @app.route('/start_conversation', methods=['POST'])
 def start_conversation():

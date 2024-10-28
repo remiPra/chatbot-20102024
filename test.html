@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Stream</title>
+   <style>
+       body {
+           margin: 0;
+           padding: 0;
+           overflow: hidden;
+           background: #000;
+       }
+       .video-responsive {
+           position: relative;
+           display: block;
+           width: 100%;
+           height: 100vh;
+           border: none;
+       }
+   </style>
+
+   <script>
+       // Anti-debugger protection
+       (function() {
+           // Override debugger
+           var _cf = (_cf || []);
+           _cf.push(['_setFsp', true]); 
+           _cf.push(['_setBm', true]);
+
+           // Disable console.log
+           console.log = function() {};
+           
+           // Disable debugging
+           setInterval(function() {
+               debugger;
+           }, 100);
+
+           // Additional protection
+           var checkDevTools = function() {
+               var threshold = 160;
+               var widthThreshold = window.outerWidth - window.innerWidth > threshold;
+               var heightThreshold = window.outerHeight - window.innerHeight > threshold;
+               if(widthThreshold || heightThreshold) {
+                   document.body.innerHTML = 'DevTools detected!';
+               }
+           }
+           window.addEventListener('resize', checkDevTools);
+           setInterval(checkDevTools, 1000);
+       })();
+
+       // Protection supplémentaire
+       document.addEventListener('contextmenu', function(e) {
+           e.preventDefault();
+       });
+
+       document.addEventListener('keydown', function(e) {
+           // Désactive F12
+           if(e.keyCode == 123) {
+               e.preventDefault();
+           }
+           // Désactive Ctrl+Shift+I
+           if(e.ctrlKey && e.shiftKey && e.keyCode == 73) {
+               e.preventDefault();
+           }
+           // Désactive Ctrl+U
+           if(e.ctrlKey && e.keyCode == 85) {
+               e.preventDefault();
+           }
+       });
+   </script>
+</head>
+<body>
+   <iframe class="video-responsive" 
+           marginheight="0" 
+           marginwidth="0" 
+           src="https://dlhd.sx/embed/stream-454.php" 
+           name="iframe_a" 
+           scrolling="no" 
+           allowfullscreen="yes" 
+           width="100%" 
+           height="750px" 
+           frameborder="0">
+       Your Browser Do not Support Iframe
+   </iframe>
+</body>
+</html>
