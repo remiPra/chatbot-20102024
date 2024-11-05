@@ -147,6 +147,20 @@ async def text_to_speech(text):
     except Exception as e:
         app.logger.error(f"Erreur lors de la synthèse vocale : {str(e)}")
         return None
+    
+async def text_to_speech_traduction(text):
+    try:
+        communicate = Communicate(text, "en-US-AriaNeural")
+        audio_filename = f"speech_{uuid.uuid4()}.mp3"
+        audio_path = os.path.join(TEMP_AUDIO_DIR, audio_filename)
+        
+        await communicate.save(audio_path)
+        return audio_filename
+    except Exception as e:
+        app.logger.error(f"Erreur lors de la synthèse vocale : {str(e)}")
+        return None
+
+
 
 @app.route('/')
 def index():
@@ -164,6 +178,14 @@ def jailbreak():
 @app.route('/chat3')
 def chat3():
     return render_template('chat3.html', anthropic_api_key=ANTHROPIC_API_KEY,groq_api_key=GROQ_API_KEY)
+
+@app.route('/translate')
+def translatechat():
+    return render_template('translatechat.html', anthropic_api_key=ANTHROPIC_API_KEY,groq_api_key=GROQ_API_KEY)
+
+@app.route('/positif')
+def positif():
+    return render_template('positif.html', anthropic_api_key=ANTHROPIC_API_KEY,groq_api_key=GROQ_API_KEY)
 
 @app.route('/start_conversation', methods=['POST'])
 def start_conversation():
@@ -291,6 +313,29 @@ def synthesize():
             return jsonify({"error": "Texte manquant"}), 400
         
         audio_file = asyncio.run(text_to_speech(text))
+        
+        if audio_file:
+            return send_from_directory(TEMP_AUDIO_DIR, audio_file, mimetype="audio/mpeg")
+        else:
+            return jsonify({"error": "Échec de la synthèse vocale"}), 500
+    
+    except Exception as e:
+        app.logger.error(f"Erreur lors de la synthèse vocale : {str(e)}")
+        return jsonify({
+            'error': 'Une erreur est survenue lors de la synthèse vocale',
+            'details': str(e)
+        }), 500
+
+@app.route('/synthesizeenglish', methods=['POST'])
+def synthesizeenglish():
+    try:
+        data = request.json
+        text = data.get('text')
+        
+        if not text:
+            return jsonify({"error": "Texte manquant"}), 400
+        
+        audio_file = asyncio.run(text_to_speech_traduction(text))
         
         if audio_file:
             return send_from_directory(TEMP_AUDIO_DIR, audio_file, mimetype="audio/mpeg")
