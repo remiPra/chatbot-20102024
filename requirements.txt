@@ -72,8 +72,8 @@ pypiwin32
 python-dotenv==1.0.1
 python-engineio==4.10.1
 python-socketio==5.11.4
-pyttsx3==2.98
-pywin32
+
+
 PyYAML==6.0.2
 requests==2.32.3
 rsa==4.9
