@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Assistant Vocal IA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+        }
+        .gradient-bg {
+            background: linear-gradient(120deg, #6366f1, #8b5cf6);
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+{% include 'drawer.html' %} 
+<body class="gradient-bg min-h-screen py-12 px-4">
+    <div class="max-w-3xl mx-auto">
+        <div class="glass-effect rounded-2xl shadow-xl p-8">
+            <h1 class="text-3xl font-bold text-center mb-8 text-indigo-700">
+                Assistant Vocal IA
+            </h1>
+            
+            <div class="flex justify-center mb-8">
+                <button id="recordButton" 
+                        class="px-8 py-4 rounded-full font-semibold text-white transition-all duration-300 shadow-lg hover:shadow-xl flex items-center space-x-2"
+                        style="background: linear-gradient(45deg, #ef4444, #f43f5e)">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                    <span>Commencer l'enregistrement</span>
+                </button>
+            </div>
+            
+            <div id="status" class="text-center mb-6 text-indigo-600 font-medium"></div>
+            
+            <div id="result" class="mt-8 hidden">
+                <div class="space-y-6">
+                    <div class="bg-white rounded-xl p-6 shadow-md">
+                        <h2 class="text-xl font-semibold mb-3 text-gray-800">Votre message</h2>
+                        <div id="transcription" class="text-gray-600"></div>
+                    </div>
+                    
+                    <div class="bg-indigo-50 rounded-xl p-6 shadow-md">
+                        <h2 class="text-xl font-semibold mb-3 text-indigo-700">Réponse de l'IA</h2>
+                        <div id="llm-response" class="text-gray-700"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <audio id="audioPlayer" class="hidden"></audio>
+        </div>
+    </div>
+
+
+    <script>
+    const recordButton = document.getElementById('recordButton');
+    const status = document.getElementById('status');
+    const result = document.getElementById('result');
+    const transcription = document.getElementById('transcription');
+    const llmResponse = document.getElementById('llm-response');
+    const audioPlayer = document.getElementById('audioPlayer');
+
+    let isRunning = false;
+    let shouldContinue = false;
+    let speechCheckInterval = null;
+
+    async function checkSpeaking() {
+        const response = await fetch('/check_speaking', {
+            method: 'POST'
+        });
+        const data = await response.json();
+        return data.speaking;
+    }
+
+    async function stopSpeechDetector() {
+        await fetch('/stop_detector', {
+            method: 'POST'
+        });
+        if (speechCheckInterval) {
+            clearInterval(speechCheckInterval);
+            speechCheckInterval = null;
+        }
+    }
+
+    async function playResponse(text) {
+        try {
+            const response = await fetch('/audio_response', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ text: text })
+            });
+
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            
+            return new Promise((resolve) => {
+                audioPlayer.src = url;
+
+                // Démarrer la détection de parole pendant la lecture
+                speechCheckInterval = setInterval(async () => {
+                    const isSpeaking = await checkSpeaking();
+                    if (isSpeaking) {
+                        audioPlayer.pause();
+                        await stopSpeechDetector();
+                        startRecording();
+                    }
+                }, 100);
+
+                audioPlayer.onended = async () => {
+                    URL.revokeObjectURL(url);
+                    await stopSpeechDetector();
+                    resolve();
+                };
+
+                audioPlayer.play();
+            });
+        } catch (error) {
+            console.error('Erreur audio:', error);
+            await stopSpeechDetector();
+        }
+    }
+
+    async function startRecording() {
+        if (!shouldContinue) return;
+        
+        try {
+            await stopSpeechDetector();
+            status.textContent = 'Parlez maintenant... (S\'arrêtera automatiquement après un silence)';
+            
+            const response = await fetch('/start_recording', {
+                method: 'POST'
+            });
+            
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                result.classList.remove('hidden');
+                transcription.textContent = data.transcription;
+                llmResponse.textContent = data.llm_response;
+                
+                status.textContent = 'Écoute de la réponse...';
+                await playResponse(data.llm_response);
+                
+                if (shouldContinue) {
+                    status.textContent = 'Prêt pour le prochain enregistrement...';
+                    setTimeout(startRecording, 1000);
+                }
+            } else if (data.status === 'no_speech') {
+                status.textContent = 'Aucune parole détectée, nouvel essai...';
+                if (shouldContinue) {
+                    setTimeout(startRecording, 1000);
+                }
+            }
+        } catch (error) {
+            console.error('Erreur:', error);
+            status.textContent = 'Erreur lors de l\'enregistrement';
+            shouldContinue = false;
+            isRunning = false;
+            recordButton.textContent = 'Commencer l\'enregistrement';
+            recordButton.classList.remove('bg-gray-500');
+            await stopSpeechDetector();
+        }
+    }
+
+    recordButton.addEventListener('click', async () => {
+        if (!isRunning) {
+            isRunning = true;
+            shouldContinue = true;
+            recordButton.textContent = 'Arrêter';
+            recordButton.classList.add('bg-gray-500');
+            startRecording();
+        } else {
+            isRunning = false;
+            shouldContinue = false;
+            audioPlayer.pause();
+            recordButton.textContent = 'Commencer l\'enregistrement';
+            recordButton.classList.remove('bg-gray-500');
+            status.textContent = 'Enregistrement arrêté';
+            await stopSpeechDetector();
+        }
+    });
+
+    // Nettoyer lorsque la page est fermée
+    window.addEventListener('beforeunload', async () => {
+        await stopSpeechDetector();
+    });
+    </script>
+</body>
+</html>
