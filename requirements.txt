@@ -68,7 +68,7 @@ pygame==2.6.1
 PyJWT==2.9.0
 pyparsing==3.2.0
 PyPDF2==3.0.1
-pypiwin32
+
 python-dotenv==1.0.1
 python-engineio==4.10.1
 python-socketio==5.11.4
