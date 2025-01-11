@@ -4,7 +4,7 @@ import speech_recognition as sr
 from groq import Groq
 import time
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, jsonify, send_file, send_from_directory, Response
+from flask import Flask, render_template, request, jsonify, send_file, send_from_directory
 import base64
 import logging
 import tempfile
@@ -12,14 +12,6 @@ import uuid
 import asyncio
 from edge_tts import Communicate
 from anthropic import Anthropic
-import pyaudio
-import wave
-import numpy as np
-from array import array
-from datetime import datetime
-import asyncio
-import tempfile
-import json
 
 # Configuration du logging
 logging.basicConfig(level=logging.DEBUG)
@@ -29,161 +21,25 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Configuration audio
-CHUNK = 1024
-FORMAT = pyaudio.paInt16
-CHANNELS = 1
-RATE = 16000
-SILENCE_THRESHOLD = 500
-SILENCE_CHUNKS = 10
-
-# Création des dossiers nécessaires
+# Création du dossier pour les fichiers audio
 TEMP_AUDIO_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'temp_audio')
-RECORDINGS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'recordings')
+if not os.path.exists(TEMP_AUDIO_DIR):
+    os.makedirs(TEMP_AUDIO_DIR)
 
-for directory in [TEMP_AUDIO_DIR, RECORDINGS_DIR]:
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-
-# Configuration des clients API
+# Configuration Groq
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-
 if not GROQ_API_KEY:
     raise ValueError("La clé API Groq n'est pas définie dans le fichier .env")
+groq_client = Groq(api_key=GROQ_API_KEY)
+
+# Configuration Anthropic
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 if not ANTHROPIC_API_KEY:
     raise ValueError("La clé API Anthropic n'est pas définie dans le fichier .env")
-
-groq_client = Groq(api_key=GROQ_API_KEY)
 anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY)
 
 # Dictionnaire pour stocker les contextes de conversation
 conversation_contexts = {}
-
-class AudioDetector:
-    def __init__(self):
-        self.audio = pyaudio.PyAudio()
-        self.stream = None
-        self.is_running = False
-        self.speaking_count = 0
-        self.required_detections = 3
-        self.noise_threshold = 8000
-        
-    def start(self):
-        if not self.stream:
-            self.stream = self.audio.open(
-                format=FORMAT,
-                channels=CHANNELS,
-                rate=RATE,
-                input=True,
-                frames_per_buffer=CHUNK
-            )
-            self.is_running = True
-            self.speaking_count = 0
-
-    def stop(self):
-        if self.stream:
-            self.stream.stop_stream()
-            self.stream.close()
-            self.stream = None
-        self.is_running = False
-        self.speaking_count = 0
-        
-    def __del__(self):
-        self.stop()
-        if self.audio:
-            self.audio.terminate()
-
-    def check_speaking(self):
-        if not self.stream:
-            return False
-        try:
-            data = self.stream.read(CHUNK, exception_on_overflow=False)
-            audio_data = array('h', data)
-            volume = max(audio_data)
-            if volume > self.noise_threshold:
-                self.speaking_count += 1
-            else:
-                self.speaking_count = max(0, self.speaking_count - 1)
-            return self.speaking_count >= self.required_detections
-        except Exception as e:
-            print(f"Erreur lors de la détection audio: {e}")
-            return False
-
-class AudioRecorder:
-    def __init__(self):
-        self.audio = pyaudio.PyAudio()
-        self.stream = None
-        self.frames = []
-        self.is_recording = False
-        
-    def start_recording(self):
-        self.stream = self.audio.open(
-            format=FORMAT,
-            channels=CHANNELS,
-            rate=RATE,
-            input=True,
-            frames_per_buffer=CHUNK
-        )
-        self.frames = []
-        self.is_recording = True
-        
-    def stop_recording(self):
-        if self.stream:
-            self.stream.stop_stream()
-            self.stream.close()
-            self.stream = None
-        self.is_recording = False
-        
-    def record_until_silence(self):
-        silence_count = 0
-        recording_started = False
-        waiting_for_sound = True
-        max_duration = 200
-        total_chunks = 0
-        
-        while self.is_recording:
-            data = self.stream.read(CHUNK)
-            audio_data = array('h', data)
-            current_volume = max(audio_data)
-            total_chunks += 1
-            
-            if waiting_for_sound:
-                if current_volume > SILENCE_THRESHOLD:
-                    waiting_for_sound = False
-                    recording_started = True
-                    self.frames.append(data)
-                if total_chunks > max_duration:
-                    break
-                continue
-                
-            self.frames.append(data)
-            
-            if current_volume < SILENCE_THRESHOLD:
-                silence_count += 1
-            else:
-                silence_count = 0
-                
-            if (silence_count > SILENCE_CHUNKS and recording_started) or total_chunks > max_duration:
-                break
-        
-        if not recording_started:
-            self.frames = []
-            
-        self.stop_recording()
-        return recording_started
-    
-    def save_audio(self, filename):
-        if self.frames:
-            wf = wave.open(filename, 'wb')
-            wf.setnchannels(CHANNELS)
-            wf.setsampwidth(self.audio.get_sample_size(FORMAT))
-            wf.setframerate(RATE)
-            wf.writeframes(b''.join(self.frames))
-            wf.close()
-            return True
-        return False
-
 
 def transcribe_audio_with_groq(audio_file):
     try:
@@ -229,18 +85,6 @@ def transcribe_audio_with_anthropic(audio_file):
     except Exception as e:
         app.logger.error(f"Erreur lors de la transcription avec Claude : {str(e)}")
         return "Erreur lors de la transcription audio."
-
-def transcribe_audio(filename):
-    recognizer = sr.Recognizer()
-    with sr.AudioFile(filename) as source:
-        audio = recognizer.record(source)
-        try:
-            text = recognizer.recognize_google(audio, language='fr-FR')
-            return text
-        except sr.UnknownValueError:
-            return "Désolé, je n'ai pas compris l'audio"
-        except sr.RequestError:
-            return "Erreur lors de la requête au service de reconnaissance vocale"
 
 def get_llm_response(conversation_id, user_input, max_tokens=1000):
     context = conversation_contexts.get(conversation_id, [])
@@ -292,7 +136,6 @@ def get_anthropic_response(conversation_id, user_input, max_tokens=1000):
         app.logger.error(f"Erreur lors de l'appel à l'API Anthropic : {str(e)}")
         return "Désolé, une erreur s'est produite lors de la génération de la réponse."
 
-
 async def text_to_speech(text):
     try:
         communicate = Communicate(text, "fr-FR-DeniseNeural")
@@ -317,18 +160,7 @@ async def text_to_speech_traduction(text):
         app.logger.error(f"Erreur lors de la synthèse vocale : {str(e)}")
         return None
 
-def cleanup_old_audio_files():
-    try:
-        current_time = time.time()
-        for filename in os.listdir(TEMP_AUDIO_DIR):
-            file_path = os.path.join(TEMP_AUDIO_DIR, filename)
-            if os.path.getmtime(file_path) < current_time - 3600:  # 1 heure
-                os.remove(file_path)
-    except Exception as e:
-        app.logger.error(f"Erreur lors du nettoyage des fichiers audio : {str(e)}")
 
-# Initialisation du détecteur audio global
-detector = AudioDetector()
 
 @app.route('/')
 def index():
@@ -338,29 +170,22 @@ def index():
 def chat2():
     return render_template('chat2.html', groq_api_key=GROQ_API_KEY)
 
+
 @app.route('/jailbreak')
 def jailbreak():
     return render_template('jailbreak.html', groq_api_key=GROQ_API_KEY)
 
 @app.route('/chat3')
 def chat3():
-    return render_template('chat3.html', anthropic_api_key=ANTHROPIC_API_KEY, groq_api_key=GROQ_API_KEY)
+    return render_template('chat3.html', anthropic_api_key=ANTHROPIC_API_KEY,groq_api_key=GROQ_API_KEY)
 
 @app.route('/translate')
 def translatechat():
-    return render_template('translatechat.html', anthropic_api_key=ANTHROPIC_API_KEY, groq_api_key=GROQ_API_KEY)
+    return render_template('translatechat.html', anthropic_api_key=ANTHROPIC_API_KEY,groq_api_key=GROQ_API_KEY)
 
 @app.route('/positif')
 def positif():
-    return render_template('positif.html', anthropic_api_key=ANTHROPIC_API_KEY, groq_api_key=GROQ_API_KEY)
-
-@app.route('/voice')
-def voice():
-    return render_template('voice.html')
-
-@app.route('/drawer.html')
-def drawer_template():
-    return send_from_directory('templates', 'drawer.html')
+    return render_template('positif.html', anthropic_api_key=ANTHROPIC_API_KEY,groq_api_key=GROQ_API_KEY)
 
 @app.route('/start_conversation', methods=['POST'])
 def start_conversation():
@@ -368,6 +193,7 @@ def start_conversation():
     conversation_contexts[conversation_id] = []
     return jsonify({"conversation_id": conversation_id})
 
+# Route originale pour Groq
 @app.route('/process_input', methods=['POST'])
 def process_input():
     try:
@@ -389,6 +215,7 @@ def process_input():
         app.logger.error(f"Erreur lors du traitement de l'entrée : {str(e)}")
         return jsonify({"error": "Une erreur s'est produite lors du traitement de votre message"}), 500
 
+# Nouvelle route pour Anthropic
 @app.route('/process_input/anthropic', methods=['POST'])
 def process_input_anthropic():
     try:
@@ -409,51 +236,6 @@ def process_input_anthropic():
     except Exception as e:
         app.logger.error(f"Erreur lors du traitement de l'entrée avec Anthropic : {str(e)}")
         return jsonify({"error": "Une erreur s'est produite lors du traitement de votre message"}), 500
-
-@app.route('/check_speaking', methods=['POST'])
-def check_speaking():
-    global detector
-    if not detector.is_running:
-        detector.start()
-    is_speaking = detector.check_speaking()
-    return jsonify({"speaking": is_speaking})
-
-@app.route('/stop_detector', methods=['POST'])
-def stop_detector():
-    global detector
-    detector.stop()
-    return jsonify({"status": "stopped"})
-
-@app.route('/start_recording', methods=['POST'])
-async def start_recording():
-    try:
-        recorder = AudioRecorder()
-        recorder.start_recording()
-        
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"recordings/audio_{timestamp}.wav"
-        
-        if recorder.record_until_silence():
-            if recorder.save_audio(filename):
-                transcription = transcribe_audio(filename)
-                llm_response = get_llm_response(str(uuid.uuid4()), transcription)
-                
-                return jsonify({
-                    'status': 'success',
-                    'transcription': transcription,
-                    'llm_response': llm_response
-                })
-        
-        return jsonify({
-            'status': 'no_speech',
-            'message': 'Aucune parole détectée'
-        })
-            
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
 
 @app.route('/transcribe', methods=['POST'])
 def transcribe():
@@ -517,6 +299,10 @@ def transcribe_anthropic():
             'details': str(e)
         }), 500
 
+@app.route('/drawer.html')
+def drawer_template():
+    return send_from_directory('templates', 'drawer.html')
+
 @app.route('/synthesize', methods=['POST'])
 def synthesize():
     try:
@@ -563,16 +349,6 @@ def synthesizeenglish():
             'details': str(e)
         }), 500
 
-@app.route('/audio_response', methods=['POST'])
-async def generate_audio_response():
-    try:
-        text = request.json.get('text')
-        communicate = Communicate(text, "fr-FR-DeniseNeural")
-        audio_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3').name
-        await communicate.save(audio_file)
-        return send_file(audio_file, mimetype='audio/mpeg')
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 @app.route('/audio/<path:filename>')
 def serve_audio(filename):
     try:
@@ -580,6 +356,16 @@ def serve_audio(filename):
     except Exception as e:
         app.logger.error(f"Erreur lors de la lecture du fichier audio : {str(e)}")
         return jsonify({"error": "Fichier audio non trouvé"}), 404
+
+def cleanup_old_audio_files():
+    try:
+        current_time = time.time()
+        for filename in os.listdir(TEMP_AUDIO_DIR):
+            file_path = os.path.join(TEMP_AUDIO_DIR, filename)
+            if os.path.getmtime(file_path) < current_time - 3600:  # 1 heure
+                os.remove(file_path)
+    except Exception as e:
+        app.logger.error(f"Erreur lors du nettoyage des fichiers audio : {str(e)}")
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
