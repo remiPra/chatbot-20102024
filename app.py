@@ -12,6 +12,8 @@ import uuid
 import asyncio
 from edge_tts import Communicate
 from anthropic import Anthropic
+from flask_cors import CORS
+
 
 # Configuration du logging
 logging.basicConfig(level=logging.DEBUG)
@@ -20,6 +22,7 @@ logging.basicConfig(level=logging.DEBUG)
 load_dotenv()
 
 app = Flask(__name__)
+CORS(app)  # Ceci permet toutes les origines
 
 # Création du dossier pour les fichiers audio
 TEMP_AUDIO_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'temp_audio')
