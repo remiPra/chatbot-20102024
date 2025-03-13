@@ -26,6 +26,7 @@ Flask==3.0.3
 Flask-SocketIO==5.4.1
 frozenlist==1.4.1
 fsspec==2024.10.0
+flask-cors
 google-api-core==2.21.0
 google-api-python-client==2.149.0
 google-auth==2.35.0
