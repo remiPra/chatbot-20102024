@@ -141,7 +141,7 @@ def get_anthropic_response(conversation_id, user_input, max_tokens=1000):
 
 async def text_to_speech(text):
     try:
-        communicate = Communicate(text, "fr‑FR‑EloiseNeural")
+        communicate = Communicate(text, "fr‑CH‑ArianeNeural")
         audio_filename = f"speech_{uuid.uuid4()}.mp3"
         audio_path = os.path.join(TEMP_AUDIO_DIR, audio_filename)
         
